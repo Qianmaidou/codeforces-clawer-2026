@@ -1,0 +1,16 @@
+# 编译产物
+*.exe
+*.o
+*.obj
+*.out
+
+# 输出目录
+out/
+
+# IDE 文件
+.vscode/
+.idea/
+
+# 系统文件
+Thumbs.db
+Desktop.ini

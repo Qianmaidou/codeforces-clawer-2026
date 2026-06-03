@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codeforces 用户报告</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+body {
+
+    font-family: Arial, 'Microsoft YaHei', sans-serif;
+    background: #fff; color: #333;
+
+    max-width: 1000px; margin: 0 auto; padding: 20px;
+}
+
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 {
+    font-size: 16px; margin: 24px 0 12px;
+
+    padding-left: 8px; border-left: 3px solid #06c;
+}
+
+.user-info { overflow: hidden; margin-bottom: 20px; }
+
+.user-info img {
+    float: left; width: 64px; height: 64px;
+    border-radius: 50%; margin-right: 16px;
+}
+
+.user-info .detail { float: left; }
+
+.user-info .rank { color: #666; font-size: 18px; }
+
+.user-info .name-row {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+}
+
+.stats { overflow: hidden; margin-bottom: 20px; }
+.stat-item {
+    float: left; width: 25%;
+    text-align: center; padding: 12px 0;
+    border: 1px solid #e0e0e0;
+    box-sizing: border-box;
+}
+.stat-item .num { font-size: 24px; font-weight: bold; }
+.stat-item .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+
+.chart-box { margin-bottom: 24px; }
+.chart-box .title { font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+.chart { width: 100%; height: 400px; }
+
+.tabs { margin-bottom: 8px; }
+.tabs button {
+    padding: 4px 14px; margin-right: 4px;
+    border: 1px solid #ccc; background: #f8f8f8; color: #333;
+    cursor: pointer; font-size: 13px; border-radius: 3px;
+}
+
+.tabs button.active { background: #06c; color: #fff; border-color: #06c; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+th {
+    background: #f0f0f0; padding: 8px 6px;
+    text-align: left; border-bottom: 2px solid #ccc;
+}
+
+td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: middle; }
+
+tr:hover td { background: #fafafa; }
+
+.prob {
+    display: inline-block; width: 32px; height: 32px;
+    line-height: 32px;
+    text-align: center; margin: 1px;
+    border-radius: 4px; font-size: 12px; font-weight: bold;
+}
+
+.solved-in    { background: #4caf50; color: #fff; }
+
+.solved-after { background: #ff9800; color: #fff; }
+
+.not-solved   { background: #e0e0e0; color: #999; }
+
+.legend { font-size: 12px; margin-bottom: 8px; }
+.legend span { margin-right: 16px; }
+.legend .box {
+    display: inline-block; width: 14px; height: 14px;
+    border-radius: 2px; vertical-align: middle; margin-right: 4px;
+}
+
+.footer { text-align: center; color: #aaa; font-size: 12px; margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<div class="user-info">
+
+    <img id="avatar" src="" alt="">
+    <div class="detail">
+        <div class="name-row">
+
+            <span style="font-size:22px;font-weight:bold;" id="handle-name"></span>
+
+            <span style="font-size:20px;font-weight:bold;" id="rating-text"></span>
+        </div>
+
+        <div class="rank" id="rank-text"></div>
+    </div>
+
+    <div style="clear:both"></div>
+</div>
+
+<div class="stats">
+    <div class="stat-item"><div class="num" id="s-contests">-</div><div class="lbl">比赛次数</div></div>
+    <div class="stat-item"><div class="num" id="s-maxr">-</div><div class="lbl">最高等级分</div></div>
+    <div class="stat-item"><div class="num" id="s-r180c">-</div><div class="lbl">近180天比赛</div></div>
+    <div class="stat-item"><div class="num" id="s-r180m">-</div><div class="lbl">近180天最高分</div></div>
+</div>
+
+<div class="chart-box">
+    <div class="title">等级分变化曲线</div>
+
+    <div class="chart" id="chart-rating"></div>
+</div>
+
+<div class="chart-box">
+    <div class="title">通过的题目等级分分布</div>
+
+    <div class="tabs">
+        <button class="active" onclick="switchDistTab('all')">全部</button>
+        <button onclick="switchDistTab('year')">近一年</button>
+        <button onclick="switchDistTab('halfYear')">近180天</button>
+        <button onclick="switchDistTab('month')">近一月</button>
+    </div>
+    <div class="chart" id="chart-dist"></div>
+</div>
+
+<div class="chart-box">
+    <div class="title">比赛详情（最新在前）</div>
+
+    <div class="legend">
+        <span><span class="box solved-in"></span> 赛中通过</span>
+        <span><span class="box solved-after"></span> 赛后补题</span>
+    </div>
+
+    <div style="max-height:600px;overflow-y:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th><th>赛事名称</th><th>时间</th>
+                    <th>赛前分</th><th>赛后分</th><th>排名</th><th>赛中通过</th><th>补题</th>
+                </tr>
+            </thead>
+
+            <tbody id="contest-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+
+{{DATA}}
+
+function getRatingColor(r) {
+    if (r >= 4000) return '#FF0000'; if (r >= 3000) return '#FF0000';
+    if (r >= 2600) return '#FF0000'; if (r >= 2400) return '#FF0000';
+    if (r >= 2300) return '#FF8C00'; if (r >= 2100) return '#FF8C00';
+    if (r >= 1900) return '#AA00AA'; if (r >= 1600) return '#0000FF';
+    if (r >= 1400) return '#03A89E'; if (r >= 1200) return '#008000';
+    if (r >  0)    return '#808080'; return '#000000';
+}
+
+(function() {
+
+    var d = USER_DATA;
+
+
+    document.getElementById('avatar').src = d.avatar || 'https://userpic.codeforces.com/no-avatar.jpg';
+
+    var h = document.getElementById('handle-name');
+
+    var hc = d.handleColor || getRatingColor(d.rating || 0);
+
+
+    if (d.specialHandle && d.firstLetterColor && d.handle.length > 0) {
+        h.innerHTML = '<span style="color:' + d.firstLetterColor + '">' + d.handle[0] + '</span>'
+                    + '<span style="color:' + hc + '">' + d.handle.slice(1) + '</span>';
+    } else {
+
+        h.textContent = d.handle; h.style.color = hc;
+    }
+
+
+    document.getElementById('rank-text').textContent = d.rank || 'Unrated';
+
+
+    var rt = document.getElementById('rating-text');
+    rt.textContent = 'Rating: ' + (d.rating || 0);
+    rt.style.color = hc;
+
+
+    var s = d.stats;
+    document.getElementById('s-contests').textContent = s.contestCount;
+    document.getElementById('s-maxr').textContent    = s.maxRating;
+    document.getElementById('s-r180c').textContent   = s.recent180Contests;
+    document.getElementById('s-r180m').textContent   = s.recent180MaxRating;
+
+
+    var chartRating = echarts.init(document.getElementById('chart-rating'));
+    var hist = d.ratingHistory;
+    var dates = [], ratings = [];
+
+
+    for (var i = 0; i < hist.length; i++) {
+
+        dates.push(new Date(hist[i].time * 1000).toLocaleDateString('zh-CN'));
+        ratings.push([i, hist[i].newRating]);
+    }
+
+
+    chartRating.setOption({
+
+        tooltip: { trigger: 'axis', formatter: function(p) {
+            var idx = p[0].dataIndex, dd = hist[idx];
+            return '<b>' + dd.name + '</b><br/>'
+                   + dates[idx] + '<br/>'
+                   + 'Rating: ' + dd.newRating + ' (#' + dd.rank + ')<br/>'
+                   + dd.oldRating + ' → ' + dd.newRating;
+        }},
+
+        grid: { left: 60, right: 20, top: 16, bottom: 48 },
+
+        xAxis: { type: 'category', data: dates,
+            axisLabel: { rotate: 45, fontSize: 9, color: '#666' } },
+
+        yAxis: { type: 'value',
+            axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#eee' } } },
+        series: [{
+            type: 'line', data: ratings, smooth: true,
+            lineStyle: { color: '#06c', width: 2 },
+
+            itemStyle: { color: function(p) { return getRatingColor(p.value[1]); } },
+            symbol: 'circle', symbolSize: 3
+        }]
+    });
+
+
+    window.addEventListener('resize', function() { chartRating.resize(); });
+
+
+    var distChart = echarts.init(document.getElementById('chart-dist'));
+
+
+    function renderDist(range) {
+
+        var buckets = d.problemRatingDist[range] || d.problemRatingDist.all;
+
+        var ri = {all:0, year:1, halfYear:2, month:3}[range] || 0;
+
+        var unratedVal = (d.problemRatingDist.unrated || [0,0,0,0])[ri];
+
+        var xData = [], yData = [];
+
+        xData.push('Unrated');
+        yData.push(unratedVal);
+
+
+        for (var i = 8; i < buckets.length; i++) {
+            xData.push((i * 100) + '-' + ((i + 1) * 100 - 1));
+            yData.push(buckets[i]);
+        }
+
+        distChart.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 60, right: 20, top: 8, bottom: 48 },
+
+            xAxis: { type: 'category', data: xData,
+                axisLabel: { rotate: 45, fontSize: 9, color: '#666' } },
+            yAxis: { type: 'value',
+                axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#eee' } } },
+            series: [{
+                type: 'bar', data: yData,
+
+                itemStyle: { color: function(p) {
+
+                    if (p.dataIndex === 0) return '#808080';
+
+                    var mid = parseInt(xData[p.dataIndex].split('-')[0]) + 50;
+                    return getRatingColor(mid);
+                }}
+            }]
+        });
+    }
+
+
+    renderDist('all');
+
+    window.addEventListener('resize', function() { distChart.resize(); });
+
+
+    window.switchDistTab = function(range) {
+        var btns = document.querySelectorAll('.tabs button');
+        btns.forEach(function(b) { b.classList.remove('active'); });
+        event.target.classList.add('active');
+        renderDist(range);
+    };
+
+
+    var html = '';
+    var contests = d.contests;
+
+
+    for (var i = 0; i < contests.length; i++) {
+        var c = contests[i];
+
+
+        var date = new Date(c.time * 1000);
+        var ds = date.getFullYear() + '-' +
+            String(date.getMonth() + 1).padStart(2, '0') + '-' +
+            String(date.getDate()).padStart(2, '0');
+
+
+        var delta = c.newRating - c.oldRating;
+        var deltaStr = (delta >= 0 ? '+' : '') + delta;
+
+
+        var solvedHtml = '', practiceHtml = '';
+        if (c.problems && c.problems.length > 0) {
+            for (var p = 0; p < c.problems.length; p++) {
+                var pr = c.problems[p];
+                if (pr.inContest) {
+
+                    solvedHtml += '<span class="prob solved-in" title="' +
+                        pr.index + ' (' + (pr.rating || '?') + ')">' + pr.index + '</span>';
+                } else if (pr.afterContest) {
+
+                    practiceHtml += '<span class="prob solved-after" title="' +
+                        pr.index + ' (' + (pr.rating || '?') + ')">' + pr.index + '</span>';
+                }
+            }
+        }
+
+        if (!solvedHtml) solvedHtml = '<span style="color:#bbb;font-size:12px;">-</span>';
+        if (!practiceHtml) practiceHtml = '<span style="color:#bbb;font-size:12px;">-</span>';
+
+
+        html += '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+
+            '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' +
+                c.name.replace(/"/g, '&quot;') + '">' + c.name + '</td>' +
+            '<td style="white-space:nowrap;">' + ds + '</td>' +
+
+            '<td style="color:' + getRatingColor(c.oldRating) + ';font-weight:bold;">' + c.oldRating + '</td>' +
+
+            '<td><span style="color:' + getRatingColor(c.newRating) + ';font-weight:bold;">' +
+                c.newRating + '</span> ' +
+                '<span style="font-size:11px;color:' + (delta >= 0 ? '#4caf50' : '#e53935') + ';">' +
+                deltaStr + '</span></td>' +
+            '<td>' + (c.rank || '-') + '</td>' +
+            '<td>' + solvedHtml + '</td>' +
+            '<td>' + practiceHtml + '</td>' +
+            '</tr>';
+    }
+
+
+    document.getElementById('contest-tbody').innerHTML = html;
+})();
+</script>
+</body>
+</html>
